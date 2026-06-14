@@ -65,13 +65,17 @@ BUILDHELP
   esac
 done
 
-# auto → 現在の CPU を検出
+# auto → 実ハードの CPU を検出
+# 注意: `uname -m` は bun/シェルが Rosetta(x86_64) 経由だと arm64 機でも
+# x86_64 を返し、x64 バイナリを誤ってビルド→実行時 exit 132 (SIGILL) になる。
+# sysctl hw.optional.arm64 は Rosetta 下でも実ハードの arch を返す
+# (install-online.sh の実機 arch 判定と同一方式)。
 if [ "$ARCH" = "auto" ]; then
-  case "$(uname -m)" in
-    arm64|aarch64) ARCH="arm64" ;;
-    x86_64)        ARCH="x64" ;;
-    *) echo "❌ 未対応の CPU: $(uname -m)" >&2; exit 1 ;;
-  esac
+  if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then
+    ARCH="arm64"
+  else
+    ARCH="x64"
+  fi
 fi
 
 # ─────────────────────────────────────────
