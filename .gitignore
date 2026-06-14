@@ -1,0 +1,23 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.env
+.env.local
+*.tsbuildinfo
+
+# Bun
+bun.lockb
+
+# Local data (test environment)
+.moltmac-local/
+
+# Claude Code: 個人ローカル設定 (チーム共有しない)
+.claude/settings.local.json
+
+# 公開リポには含めない開発専用ファイル
+# (個人プラン・価格戦略・実機ディスク情報を含むため public へ出さない)
+docs/
+CLAUDE.md
+.claude/rules/
+aico-dashboard.png
