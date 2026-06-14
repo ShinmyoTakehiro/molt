@@ -19,19 +19,21 @@
 
 ## インストール
 
-### Homebrew（推奨）
-
-```bash
-brew install ShinmyoTakehiro/tap/molt
-```
-
-### curl ワンライナー
+### curl ワンライナー（推奨）
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ShinmyoTakehiro/molt/main/scripts/install-online.sh | bash
 ```
 
 最新リリースから CPU(arm64/x64) を自動判定してバイナリを取得し、`~/.local/bin/molt` に置く。
+
+### Homebrew
+
+```bash
+brew install ShinmyoTakehiro/tap/molt
+```
+
+curl が使いにくい場合や、`brew upgrade` でまとめて更新したい人向けの代替。
 
 ### ソースから
 
