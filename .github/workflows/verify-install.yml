@@ -1,0 +1,45 @@
+name: verify-install
+
+# molt の配布物が Intel / Apple Silicon の両方で実際に起動するか検証する。
+# - macos-13   = Intel (x86_64) ランナー  ← bottle の x86_64 slice / molt-x64 を実機検証
+# - macos-14   = Apple Silicon (arm64) ランナー
+# 検証チャンネル: Homebrew tap (universal :all bottle) と curl ワンライナー (per-arch binary)。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: "${{ matrix.os }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-13, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Show runner arch
+        run: |
+          echo "uname -m        : $(uname -m)"
+          echo "hw.optional.arm64: $(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)"
+
+      # ── チャンネル1: Homebrew tap (universal :all bottle を pour) ──
+      - name: Install via Homebrew tap
+        run: brew install ShinmyoTakehiro/tap/molt
+
+      - name: Run molt (brew)
+        run: |
+          molt help
+          test -n "$(molt help | grep -i molt)" || { echo "molt help に 'molt' が無い"; exit 1; }
+
+      - name: Uninstall brew copy
+        run: brew uninstall molt
+
+      # ── チャンネル2: curl ワンライナー (per-arch standalone binary) ──
+      - name: Install via curl one-liner
+        run: curl -fsSL https://raw.githubusercontent.com/ShinmyoTakehiro/molt/main/scripts/install-online.sh | bash
+
+      - name: Run molt (curl)
+        run: |
+          "$HOME/.local/bin/molt" help
+          test -n "$("$HOME/.local/bin/molt" help | grep -i molt)" || { echo "molt help に 'molt' が無い"; exit 1; }
