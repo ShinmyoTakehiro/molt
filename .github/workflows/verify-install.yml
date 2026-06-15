@@ -1,8 +1,10 @@
 name: verify-install
 
 # molt の配布物が Intel / Apple Silicon の両方で実際に起動するか検証する。
-# - macos-13   = Intel (x86_64) ランナー  ← bottle の x86_64 slice / molt-x64 を実機検証
-# - macos-14   = Apple Silicon (arm64) ランナー
+# - macos-15-intel = Intel (x86_64) ランナー  ← bottle の x86_64 slice / molt-x64 を実機検証
+#   ※ macos-13 (旧 Intel) は 2025-12 で廃止。x86_64 最後のイメージ macos-15-intel を使用
+#     (2027-08 まで提供。以降 GitHub Actions は x86_64 非対応)。
+# - macos-15       = Apple Silicon (arm64) ランナー
 # 検証チャンネル: Homebrew tap (universal :all bottle) と curl ワンライナー (per-arch binary)。
 on:
   release:
@@ -15,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, macos-14]
+        os: [macos-15-intel, macos-15]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Show runner arch
