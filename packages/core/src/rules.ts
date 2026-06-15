@@ -198,6 +198,34 @@ export const BUILTIN_RULES: ReadonlyArray<Rule> = [
     regenerable: true,
     regenCost: 'redownload',
   },
+  // C1: dev ビルドツールの再DL可キャッシュ（システムデータの不透明な肥大要因）。
+  // いずれも cache サブディレクトリのみにマッチさせ、兄弟の実体には決して触れない:
+  //   ~/.gradle/jdks (JDK) / ~/.m2/settings.xml (認証) / ~/.cargo/bin (インストール済バイナリ)
+  {
+    // 監査 MEDIUM-2: caches/modules-2 は再DL、caches/build-cache-1 は再ビルド。
+    // 混在するため worst-case の rebuild をコスト表記とする（初回ビルドに時間がかかる）。
+    name: 'gradle-cache',
+    reason: 'Gradle 依存・ビルドキャッシュ（再DL/再ビルド可・初回ビルドに時間がかかる場合あり）',
+    classify: (p) => /\/\.gradle\/caches(\/|$)/.test(p) ? 'SAFE' : null,
+    regenerable: true,
+    regenCost: 'rebuild',
+  },
+  {
+    // 監査 MEDIUM-1: 通常は中央リポジトリから再DL可だが、mvn install した
+    // ローカル成果物（自前 SNAPSHOT 等）が混在する場合は再ビルドが要る点に注意。
+    name: 'maven-cache',
+    reason: 'Maven ローカルリポジトリ（依存 jar・再DL可。mvn install したローカル成果物が含まれる場合は要確認）',
+    classify: (p) => /\/\.m2\/repository(\/|$)/.test(p) ? 'SAFE' : null,
+    regenerable: true,
+    regenCost: 'redownload',
+  },
+  {
+    name: 'cargo-cache',
+    reason: 'Rust cargo の crate キャッシュ（registry/git・再DL可）',
+    classify: (p) => /\/\.cargo\/(registry|git)(\/|$)/.test(p) ? 'SAFE' : null,
+    regenerable: true,
+    regenCost: 'redownload',
+  },
   {
     name: 'docker-desktop-cache',
     reason: 'Docker Desktop キャッシュ',

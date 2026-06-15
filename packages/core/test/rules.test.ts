@@ -264,6 +264,78 @@ describe('v0.2: android-system-image 新ルール', () => {
   });
 });
 
+describe('C1: dev ビルドツール cache (システムデータの再DL可キャッシュ)', () => {
+  // 共通: いずれも「ネットから再DL可能・ユーザー自身のデータでない」隠しキャッシュ。
+  // 設計の肝 = cache サブディレクトリだけにマッチし、兄弟の実体
+  // (~/.cargo/bin=インストール済バイナリ, ~/.m2/settings.xml=認証情報,
+  //  ~/.gradle/jdks=インストール済JDK) には決してマッチしない。
+
+  describe('gradle-cache (~/.gradle/caches → SAFE / redownload)', () => {
+    it('~/.gradle/caches は SAFE + rebuild（build-cache 混在のため worst-case）', () => {
+      const p = `${HOME}/.gradle/caches`;
+      expect(classify(p)).toBe('SAFE');
+      expect(ruleName(p)).toBe('gradle-cache');
+      expect(regen(p)).toEqual({ regenerable: true, regenCost: 'rebuild' });
+    });
+    it('~/.gradle/caches 配下 (modules-2 等) も SAFE', () => {
+      expect(classify(`${HOME}/.gradle/caches/modules-2/files-2.1/org.foo`)).toBe('SAFE');
+    });
+    it('兄弟の ~/.gradle/jdks (インストール済JDK) にはマッチしない', () => {
+      expect(ruleName(`${HOME}/.gradle/jdks/temurin-21`)).not.toBe('gradle-cache');
+      expect(classify(`${HOME}/.gradle/jdks/temurin-21`)).not.toBe('SAFE');
+    });
+    it('兄弟の ~/.gradle/daemon にはマッチしない', () => {
+      expect(ruleName(`${HOME}/.gradle/daemon/8.5`)).not.toBe('gradle-cache');
+    });
+    it('prefix 衝突 (~/.gradle/caches-backup) にマッチしない', () => {
+      expect(ruleName(`${HOME}/.gradle/caches-backup/foo`)).not.toBe('gradle-cache');
+    });
+  });
+
+  describe('maven-cache (~/.m2/repository → SAFE / redownload)', () => {
+    it('~/.m2/repository は SAFE + redownload', () => {
+      const p = `${HOME}/.m2/repository`;
+      expect(classify(p)).toBe('SAFE');
+      expect(ruleName(p)).toBe('maven-cache');
+      expect(regen(p)).toEqual({ regenerable: true, regenCost: 'redownload' });
+    });
+    it('~/.m2/repository 配下も SAFE', () => {
+      expect(classify(`${HOME}/.m2/repository/com/google/guava`)).toBe('SAFE');
+    });
+    it('兄弟の ~/.m2/settings.xml (認証情報を含むことあり) にはマッチしない', () => {
+      expect(ruleName(`${HOME}/.m2/settings.xml`)).not.toBe('maven-cache');
+      expect(classify(`${HOME}/.m2/settings.xml`)).not.toBe('SAFE');
+    });
+    it('兄弟の ~/.m2/wrapper にはマッチしない', () => {
+      expect(ruleName(`${HOME}/.m2/wrapper`)).not.toBe('maven-cache');
+    });
+  });
+
+  describe('cargo-cache (~/.cargo/registry,git → SAFE / redownload)', () => {
+    it('~/.cargo/registry は SAFE + redownload', () => {
+      const p = `${HOME}/.cargo/registry`;
+      expect(classify(p)).toBe('SAFE');
+      expect(ruleName(p)).toBe('cargo-cache');
+      expect(regen(p)).toEqual({ regenerable: true, regenCost: 'redownload' });
+    });
+    it('~/.cargo/git も SAFE', () => {
+      expect(classify(`${HOME}/.cargo/git/db`)).toBe('SAFE');
+      expect(ruleName(`${HOME}/.cargo/git`)).toBe('cargo-cache');
+    });
+    it('🔴 兄弟の ~/.cargo/bin (cargo install したバイナリ本体) には決してマッチしない', () => {
+      expect(ruleName(`${HOME}/.cargo/bin/ripgrep`)).not.toBe('cargo-cache');
+      expect(classify(`${HOME}/.cargo/bin`)).not.toBe('SAFE');
+      expect(classify(`${HOME}/.cargo/bin/ripgrep`)).not.toBe('SAFE');
+    });
+    it('兄弟の ~/.cargo/env にはマッチしない', () => {
+      expect(ruleName(`${HOME}/.cargo/env`)).not.toBe('cargo-cache');
+    });
+    it('prefix 衝突 (~/.cargo/github 等) にマッチしない', () => {
+      expect(ruleName(`${HOME}/.cargo/github/foo`)).not.toBe('cargo-cache');
+    });
+  });
+});
+
 describe('v0.2: 不変条件 — DANGER に regenerable は決して付かない', () => {
   const dangerPaths = [
     `${HOME}/.ssh/id_rsa`,
@@ -299,6 +371,7 @@ describe('v0.2: 不変条件 — DANGER に regenerable は決して付かない
       'electron-web-storage', 'electron-service-worker', 'electron-http-cache',
       'electron-code-cache', 'electron-gpu-cache', 'electron-crash-reports', 'electron-shared-dictionary',
       'xcode-ios-device-support', 'core-simulator-devices', 'node-modules', 'android-system-image',
+      'gradle-cache', 'maven-cache', 'cargo-cache',
     ].sort();
     const actual = BUILTIN_RULES.filter((r) => r.regenerable === true).map((r) => r.name).sort();
     expect(actual).toEqual(allowed);

@@ -53,6 +53,31 @@ describe('DEFAULTS.scanRoots', () => {
     expect(found).toBeDefined();
     expect(found?.depth).toBe(4);
   });
+
+  // C1: dev ビルドツール cache を「cache サブディレクトリ直接」で scan 対象化する。
+  // 親 (~/.gradle 等) を root にすると兄弟の実体 (jdks / bin / settings.xml) を
+  // 走査してしまうため、cache サブディレクトリだけを root にして走査面を最小化する。
+  it('C1: ~/.gradle/caches を cache サブディレクトリ直接で含む（親 ~/.gradle は含まない）', () => {
+    const paths = DEFAULTS.scanRoots
+      .map((spec) => normalizeScanRoot(spec, DEFAULTS.scanDepth).path);
+    expect(paths).toContain(join(HOME, '.gradle', 'caches'));
+    expect(paths).not.toContain(join(HOME, '.gradle'));
+  });
+
+  it('C1: ~/.m2/repository を含む（親 ~/.m2 は含まない＝settings.xml を走査しない）', () => {
+    const paths = DEFAULTS.scanRoots
+      .map((spec) => normalizeScanRoot(spec, DEFAULTS.scanDepth).path);
+    expect(paths).toContain(join(HOME, '.m2', 'repository'));
+    expect(paths).not.toContain(join(HOME, '.m2'));
+  });
+
+  it('C1: ~/.cargo/registry と /git を含む（親 ~/.cargo は含まない＝bin を走査しない）', () => {
+    const paths = DEFAULTS.scanRoots
+      .map((spec) => normalizeScanRoot(spec, DEFAULTS.scanDepth).path);
+    expect(paths).toContain(join(HOME, '.cargo', 'registry'));
+    expect(paths).toContain(join(HOME, '.cargo', 'git'));
+    expect(paths).not.toContain(join(HOME, '.cargo'));
+  });
 });
 
 describe('buildHardcodedExcludes (配布安全性)', () => {
@@ -110,5 +135,19 @@ describe('isExcluded', () => {
   it('保護領域名の prefix 衝突は除外されない（.ssh-evil ≠ .ssh）', () => {
     // `.ssh` は除外だが `.ssh-evil` は別物。`excl + "/"` 比較で弾かれてはいけない
     expect(isExcluded(join(HOME, '.ssh-evil', 'data'))).toBe(false);
+  });
+
+  // C1: cargo cache を scan 対象化するにあたり、兄弟の ~/.cargo/bin
+  // (cargo install したバイナリ本体) を多層防御で保護する。走査面外なので
+  // 通常は触れないが、手動 --paths でも削除を拒否する硬い壁を追加する。
+  it('C1: ~/.cargo/bin (インストール済バイナリ) は手動指定でも除外される', () => {
+    expect(isExcluded(join(HOME, '.cargo', 'bin'))).toBe(true);
+    expect(isExcluded(join(HOME, '.cargo', 'bin', 'ripgrep'))).toBe(true);
+  });
+
+  // 監査 LOW-1: Maven 認証情報を多層防御で保護（走査面外だが手動指定をフェールセーフ拒否）
+  it('C1: ~/.m2/settings.xml と settings-security.xml (認証情報) は手動指定でも除外される', () => {
+    expect(isExcluded(join(HOME, '.m2', 'settings.xml'))).toBe(true);
+    expect(isExcluded(join(HOME, '.m2', 'settings-security.xml'))).toBe(true);
   });
 });

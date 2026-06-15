@@ -79,6 +79,13 @@ export const DEFAULTS = {
     { path: join(HOME, 'Library'), depth: 6 },
     { path: join(HOME, '.Trash'), depth: 2 },
     { path: join(HOME, '.cache'), depth: 4 },
+    // C1: dev ビルドツールの再DL可キャッシュ（システムデータの肥大要因）。
+    // 親 (~/.gradle 等) ではなく cache サブディレクトリを直接 root にすることで、
+    // 兄弟の実体 (jdks / settings.xml / cargo bin) を走査面から外す。
+    { path: join(HOME, '.gradle', 'caches'), depth: 4 },     // 依存 jar / ビルド中間物
+    { path: join(HOME, '.m2', 'repository'), depth: 5 },     // Maven 依存（group/artifact/version で深い）
+    { path: join(HOME, '.cargo', 'registry'), depth: 3 },    // crate ソース・index
+    { path: join(HOME, '.cargo', 'git'), depth: 3 },         // git 依存（存在しなければ scanner が skip）
   ],
   /** 個別指定がない root に適用する fallback depth */
   scanDepth: 6,
@@ -123,6 +130,13 @@ export function buildHardcodedExcludes(
     join(home, '.aws'),
     join(home, '.config', 'gh'),
     join(home, '.kube'),
+    // C1: cargo install したバイナリ本体（キャッシュではなくインストール済プログラム）。
+    // scan 対象は ~/.cargo/registry,git のみだが、手動 --paths 誤指定も多層防御で拒否する。
+    join(home, '.cargo', 'bin'),
+    // 監査 LOW-1: Maven の認証情報（サーバーパスワード/トークンとそのマスターパスワード）。
+    // scan 対象は ~/.m2/repository のみで走査面外だが、手動 --paths 誤指定をフェールセーフで拒否。
+    join(home, '.m2', 'settings.xml'),
+    join(home, '.m2', 'settings-security.xml'),
     // システム / Library — depth 6 で到達可能になった重要データを多層保護
     join(home, 'Library', 'Mail'),
     join(home, 'Library', 'Messages'),
