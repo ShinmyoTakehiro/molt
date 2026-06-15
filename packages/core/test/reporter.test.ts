@@ -108,6 +108,21 @@ describe('renderText 友好ラベル + CAREFUL ♻️/🔒 分割', () => {
     expect(txt).toContain('clean では消えません');
     expect(txt).toContain('飛ぶ'); // 消すとまずい感
   });
+
+  it('該当0件の分類でも見出しを「(0件) 該当なし」で出す（カテゴリ消失を防ぐ）', () => {
+    // SAFE のみ → ♻️/🔒/❓ は空。空でもステータス見出しは残す。
+    const safeOnly: ReadonlyArray<ClassifiedPath> = [
+      { path: '/Users/foo/Library/Caches/npm', sizeBytes: 500_000_000, classification: 'SAFE', reason: 'npm', decidedBy: 'rule', ruleName: 'npm-cache' },
+    ];
+    const txt = renderText({ classified: safeOnly, diskInfo: fixtureDiskInfo });
+    // 削除系 3 カテゴリ(🗑♻️🔒)は 0 件でも見出しを残す
+    expect(txt).toContain('♻️ 確認して消せる (0件)');
+    expect(txt).toContain('🔒 大事なデータ (0件)');
+    expect(txt).toContain('該当なし');
+    // ❓ UNKNOWN は ② の閾値抑制を維持（item list には出さず・サマリ行で担保）
+    expect(txt).not.toContain('❓ 未判定 (0件)');
+    expect(txt).toContain('未判定:'); // サマリ行は常に出る
+  });
 });
 
 describe('renderJson summaryText (B 統一)', () => {

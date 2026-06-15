@@ -134,8 +134,8 @@ export function renderText(input: ReportInput): string {
   appendItemList(lines, '♻️ 確認して消せる', careful.regenerable, (c) => regenCostLabel(c.regenCost), '消しても元に戻せる');
   // 🔒 大事なデータ（消すとまずい・安全案内付き）
   appendItemList(lines, '🔒 大事なデータ', careful.realData, (c) => c.reason, '消すとアプリ設定・データが飛ぶ・clean では消えません');
-  // ❓ 未判定（② 残余化＋閾値で間引いた傘ノードのみ）
-  appendItemList(lines, '❓ 未判定', displayableUnknownRoots(classified), (c) => c.reason);
+  // ❓ 未判定（② 残余化＋閾値で間引いた傘ノードのみ。空なら出さずサマリ行で担保）
+  appendItemList(lines, '❓ 未判定', displayableUnknownRoots(classified), (c) => c.reason, undefined, true);
 
   lines.push('─'.repeat(60));
   lines.push('🗑 molt clean               すぐ消せるものをゴミ箱へ（大事なデータは消えません）');
@@ -158,8 +158,17 @@ function appendItemList(
   items: ReadonlyArray<ClassifiedPath>,
   subLine: (c: ClassifiedPath) => string,
   noteAfterHeader?: string,
+  // ❓ UNKNOWN は ② で残余<閾値の傘ノードを意図的に隠す（teachable でないため）。
+  // その場合だけ空セクションごと省く。削除系(🗑♻️🔒)は 0 件でも見出しを残す。
+  suppressWhenEmpty = false,
 ): void {
-  if (items.length === 0) return;
+  // 0 件でも見出しは残す（カテゴリが消えると「無い」のか「0」か分からないため）。
+  if (items.length === 0) {
+    if (suppressWhenEmpty) return;
+    lines.push(`${heading} (0件) ── 該当なし`);
+    lines.push('');
+    return;
+  }
   const note = noteAfterHeader ? ` ── ${noteAfterHeader}` : '';
   lines.push(`${heading} (${items.length}件)${note}:`);
   for (const c of items.slice(0, 15)) {
@@ -235,7 +244,14 @@ function appendMarkdownSection(
   items: ReadonlyArray<ClassifiedPath>,
   subLine: (c: ClassifiedPath) => string,
 ): void {
-  if (items.length === 0) return;
+  // 0 件でも見出しは残す（renderText と挙動を揃える）。
+  if (items.length === 0) {
+    lines.push(`## ${heading}`);
+    lines.push('');
+    lines.push('_該当なし_');
+    lines.push('');
+    return;
+  }
   lines.push(`## ${heading}`);
   lines.push('');
   lines.push(`| サイズ | パス | 説明 |`);
